@@ -11,9 +11,9 @@ class NN(nn.Module):
         self.network = nn.ModuleList()
 
         if args.NN_hidden == [0]:
-            self.network.append(nn.Linear(args.input_size, args.num_classes))
+            self.network.append(nn.Linear(args.num_features, args.num_classes))
         else:
-          sizes = [args.input_size] + args.NN_hidden
+          sizes = [args.num_features] + args.NN_hidden
           for input, output in zip(sizes, sizes[1:]):
               self.network.append(nn.Linear(input, output))
               self.network.append(nn.ReLU())
@@ -21,7 +21,7 @@ class NN(nn.Module):
         self.network.append(nn.Linear(sizes[-1], args.num_classes))
         self.network = nn.Sequential(*self.network)
 
-    def forward(self, x):
+    def forward(self, args, x):
         out = self.network(x)
         return out
 
@@ -34,7 +34,7 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(args.input_size, args.LSTM_hidden_size, args.LSTM_num_layers, batch_first=True)
         self.fc = nn.Linear(args.LSTM_hidden_size, args.num_classes)
         
-    def forward(self, x):
+    def forward(self, args, x):
         h0 = torch.zeros(self.LSTM_num_layers, x.size(0), self.LSTM_hidden_size).to(args.device) 
         c0 = torch.zeros(self.LSTM_num_layers, x.size(0), self.LSTM_hidden_size).to(args.device) 
         out, _ = self.lstm(x, (h0,c0))  

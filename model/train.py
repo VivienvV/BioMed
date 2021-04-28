@@ -1,12 +1,11 @@
 import pandas as pd
 import argparse
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, ConcatDataset
 from sklearn.model_selection import train_test_split, KFold
 
 from code.models import NN, LSTM
@@ -26,6 +25,7 @@ def train_and_test(args, model, train_loader, test_loader):
       n_correct = 0
       n_samples = 0
       tloss = 0
+      # print(train_loader[0])
       for i, (arrayseq, labels) in enumerate(train_loader):  
           if args.model == 'LSTM':
             arrayseq = arrayseq.reshape(-1, args.num_features, 1)
@@ -33,7 +33,7 @@ def train_and_test(args, model, train_loader, test_loader):
           labels = labels.to(args.device)
           
           # Forward pass
-          outputs = model(arrayseq)
+          outputs = model(args, arrayseq)
           loss = criterion(outputs, labels)
           tloss += loss
 
@@ -54,6 +54,7 @@ def train_and_test(args, model, train_loader, test_loader):
       acclist.append(accuracy)
       losslist.append(tloss / n_total_steps)
   print("\nCompleted training!\n")
+  torch.save(model, "model/{}.pth".format(args.model))
 
   with torch.no_grad():
       n_correct = 0
@@ -63,7 +64,7 @@ def train_and_test(args, model, train_loader, test_loader):
             arrayseq = arrayseq.reshape(-1, args.num_features, args.input_size)
           arrayseq = arrayseq.to(args.device)
           labels = labels.to(args.device)
-          outputs = model(arrayseq)
+          outputs = model(args, arrayseq)
           _, predicted = torch.max(outputs.data, 1)
           n_samples += labels.size(0)
           n_correct += (predicted == labels).sum().item()
@@ -110,27 +111,83 @@ def main():
 
   # Device configuration
   # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
   # Load the data innto PyTorch
-  train_call = pd.read_csv('~/Train_call.txt', delimiter='\t' )
-  train_clin = pd.read_csv('~/Train_clinical.txt', delimiter='\t' )
-  train_arr = load_data(train_call, train_clin)
-  train_arr = feature_selection(train_arr)
+  train_call = pd.read_csv('Train_call.txt', delimiter='\t' )
+  train_clin = pd.read_csv('Train_clinical.txt', delimiter='\t' )
+  train_arr, labels = load_data(train_call, train_clin)
+  train_arr = feature_selection(train_arr, labels)
 
-  X_train, X_test, y_train, y_test = train_test_split(train_arr, labels, test_size=args.test_size)
-  train_data = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
-  test_data = TensorDataset(torch.from_numpy(X_test), torch.from_numpy(y_test))
+  args.num_features = train_arr.shape[1]
+  print("Number of features that will be used: ", args.num_features)
 
-  train_loader = torch.utils.data.DataLoader(train_data, 
-                                            batch_size=args.batch_size,
-                                            shuffle=True)
-  test_loader = torch.utils.data.DataLoader(test_data, 
-                                            batch_size=args.batch_size, 
-                                            shuffle=False)
+  # X_train, X_test, y_train, y_test = train_test_split(train_arr, labels, test_size=args.test_size)
+  # train_data = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
+  # test_data = TensorDataset(torch.from_numpy(X_test), torch.from_numpy(y_test))
+
+  # train_loader = torch.utils.data.DataLoader(train_data, 
+  #                                           batch_size=args.batch_size,
+  #                                           shuffle=True)
+  # test_loader = torch.utils.data.DataLoader(test_data, 
+  #                                           batch_size=args.batch_size, 
+  #                                           shuffle=False)
   if args.model == 'NN':
-    model = NN()
+    model = NN(args).to(args.device)
   elif args.model == 'LSTM':
-    model = LSTM()
+    model = LSTM(args).to(args.device)
 
-  acclist, losslist, test_acc = train_and_test(args, model, train_loader, test_loader)
-  print('test acc', test_acc)
+
+# Configuration options
+  k_folds = 5
+  # For fold results
+  results = {}
+  
+  # Set fixed random number seed
+  torch.manual_seed(42)
+  
+  dataset =  TensorDataset(torch.from_numpy(train_arr), torch.from_numpy(labels))
+  # test_data = TensorDataset(torch.from_numpy(X_test), torch.from_numpy(y_test))
+  
+  # Define the K-fold Cross Validator
+  kfold = KFold(n_splits=k_folds, shuffle=True)
+    
+  # Start print
+  print('--------------------------------')
+
+  # K-fold Cross Validation model evaluation
+  for fold, (train_ids, test_ids) in enumerate(kfold.split(dataset)):
+    
+    # Print
+    print(f'FOLD {fold}')
+    print('--------------------------------')
+    
+    # Sample elements randomly from a given list of ids, no replacement.
+    train_subsampler = torch.utils.data.SubsetRandomSampler(train_ids)
+    test_subsampler = torch.utils.data.SubsetRandomSampler(test_ids)
+    
+    # Define data loaders for training and testing data in this fold
+    trainloader = torch.utils.data.DataLoader(
+                      dataset, 
+                      batch_size=args.batch_size, sampler=train_subsampler)
+    testloader = torch.utils.data.DataLoader(
+                      dataset,
+                      batch_size=args.batch_size, sampler=test_subsampler)
+    
+    
+    # Initialize optimizer
+    
+    _,_, acc = train_and_test(args, model, trainloader, testloader)
+    results[fold] = acc
+    
+  # Print fold results
+  print(f'K-FOLD CROSS VALIDATION RESULTS FOR {k_folds} FOLDS')
+  print('--------------------------------')
+  sum = 0.0
+  for key, value in results.items():
+    print(f'Fold {key}: {value} %')
+    sum += value
+  print(f'Average: {sum/len(results.items())} %')
+
+
+  
+if __name__ == '__main__':
+    main()
