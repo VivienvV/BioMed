@@ -10,6 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split, KFold
 
 from code.models import NN, LSTM
+from code.load_data import load_data, feature_selection
 
 
 def train_and_test(args, model, train_loader, test_loader):
@@ -131,5 +132,5 @@ def main():
   elif args.model == 'LSTM':
     model = LSTM()
 
-  acclist, losslist, test_acc = train_and_test(model, train_loader, test_loader)
+  acclist, losslist, test_acc = train_and_test(args, model, train_loader, test_loader)
   print('test acc', test_acc)
