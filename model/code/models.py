@@ -21,7 +21,7 @@ class NN(nn.Module):
         self.network.append(nn.Linear(sizes[-1], args.num_classes))
         self.network = nn.Sequential(*self.network)
 
-    def forward(self, args, x):
+    def forward(self, x):
         out = self.network(x)
         return out
 
