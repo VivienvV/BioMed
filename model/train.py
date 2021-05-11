@@ -9,10 +9,65 @@ from torch.utils.data import TensorDataset, DataLoader, ConcatDataset
 from sklearn.model_selection import train_test_split, KFold
 import shap
 import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.feature_selection import SelectFromModel 
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.neighbors import NearestCentroid
+from sklearn import svm
 
-from model.code.models import NN, LSTM
-from model.code.load_data import preprocess_data
+class NN(nn.Module):
+    def __init__(self, args):
+        super(NN, self).__init__()
+        self.network = nn.ModuleList()
 
+        if args.NN_hidden == [0]:
+            self.network.append(nn.Linear(args.num_features, args.num_classes))
+        else:
+          sizes = [args.num_features] + args.NN_hidden
+          for input, output in zip(sizes, sizes[1:]):
+              self.network.append(nn.Linear(input, output))
+              self.network.append(nn.ReLU())
+
+        self.network.append(nn.Linear(sizes[-1], args.num_classes))
+        self.network = nn.Sequential(*self.network)
+
+    def forward(self, x):
+        out = self.network(x)
+        return out
+
+class LSTM(nn.Module):
+    def __init__(self, args):
+        super(LSTM, self).__init__()
+        self.device = args.device
+        self.LSTM_num_layers = args.LSTM_num_layers
+        self.LSTM_hidden_size = args.LSTM_hidden_size
+        self.lstm = nn.LSTM(args.input_size, args.LSTM_hidden_size, args.LSTM_num_layers, batch_first=True)
+        self.fc = nn.Linear(args.LSTM_hidden_size, args.num_classes)
+        
+    def forward(self, x):
+        h0 = torch.zeros(self.LSTM_num_layers, x.size(0), self.LSTM_hidden_size).to(self.device) 
+        c0 = torch.zeros(self.LSTM_num_layers, x.size(0), self.LSTM_hidden_size).to(self.device) 
+        out, _ = self.lstm(x, (h0,c0))  
+        out = out[:, -1, :]
+        out = self.fc(out)
+        return out
+
+def preprocess_data(train_call, train_clin):
+    full_data = train_call
+    train_arr = train_call[train_call.columns[-100:]].to_numpy()
+    train_arr = train_arr.T
+    l = train_clin[train_clin.columns[-1:]].to_numpy().T.squeeze()
+    labels = np.array(pd.factorize(l)[0].tolist())
+    clf = ExtraTreesClassifier(n_estimators=50)
+    clf = clf.fit(train_arr, labels)
+    clf.feature_importances_  
+    model = SelectFromModel(clf, prefit=True)
+    cols = model.get_support(indices=True)
+    train_arr = model.transform(train_arr.astype(np.float32))
+    
+    return train_arr, labels, full_data.iloc[cols]
 
 def train_and_test(args, model, train_loader, test_loader):
 
@@ -125,27 +180,39 @@ def cross_validation(args, model, train_arr, labels):
 
   return
 
-def feature_importance(args, model, data):
-  features = (new_df["ID_no"]).tolist()
-  gfeatures = (new_df["Gene_IDs"]).tolist()
+def feature_importance(args, model, X_train, X_test, fdf):
+  features = (fdf["ID_no"]).tolist()
 
   sm = torch.load("model/{}.pth".format(args.model)).to(args.device)
+  X_full = np.vstack((X_train, X_test))
 
-  e = shap.DeepExplainer(sm, torch.from_numpy(X_train).to(args.device))
+  e = shap.DeepExplainer(sm, torch.from_numpy(X_full).to(args.device))
   shap_values = e.shap_values(torch.from_numpy(X_full).to(args.device))
 
-  class1 = shap_values[0]
-  class2 = shap_values[1]
-  class3 = shap_values[2]
-
-  shap.summary_plot(shap_values, features=torch.from_numpy(X_train).to(args.device), feature_names = features, show=False)
+  shap.summary_plot(shap_values, features=torch.from_numpy(X_full).to(args.device), feature_names = features, show=False, class_names=['HER2+', 'HR+', 'TN'])
   plt.savefig("summary_plot.png")
+
+
+  her2 = np.mean(np.abs(shap_values[0]), axis=0)
+  hr = np.mean(np.abs(shap_values[1]), axis=0)
+  tn = np.mean(np.abs(shap_values[2]), axis=0)
+
+  m = (np.mean(np.abs(shap_values), axis=0))
+  mm = np.mean(m, axis=0)
+  new = np.c_[features, fdf['Chromosome'].astype('int32'), fdf['Start'].astype('int32'), fdf['End'].astype('int32'),  mm , her2, hr, tn, fdf["Gene_IDs"]]   
+  df = pd.DataFrame(new, columns=['feature_no', 'chromosome', 'start', 'end', 'mean_fi', 'HER2+_fi', 'HR+_fi', 'TN_fi', 'gene_ids']) 
+  df = df.sort_values(by=['mean_fi'], ascending=False)
+  df = df.astype({'feature_no': 'int32'})
+  df = df.reset_index(drop=True)
+  df.to_csv('feature_importance.csv')
+
+  return
 
 def main():
   parser = argparse.ArgumentParser()
 
   # Model params
-  parser.add_argument('--model', type=str, default='LSTM',
+  parser.add_argument('--model', type=str, default='NN',
                       help='Which model to use for training: NN or LSTM')
   parser.add_argument('--num_features', type=int, default=2834,
                       help='Length of an input sequence/ amount of features each sample contains')
@@ -205,8 +272,7 @@ def main():
   # train_and_test(args, model, train_loader, test_loader)
   cross_validation(args, model, train_arr, labels)
 
-  X_full = np.vstack((X_train, X_test))
-  feature_importance(args, model, X_full)
+  feature_importance(args, model, X_train, X_test, new_df)
   
 
   
