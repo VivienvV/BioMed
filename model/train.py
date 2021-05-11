@@ -125,6 +125,21 @@ def cross_validation(args, model, train_arr, labels):
 
   return
 
+def feature_importance(args, model, data):
+  features = (new_df["ID_no"]).tolist()
+  gfeatures = (new_df["Gene_IDs"]).tolist()
+
+  sm = torch.load("model/{}.pth".format(args.model)).to(args.device)
+
+  e = shap.DeepExplainer(sm, torch.from_numpy(X_train).to(args.device))
+  shap_values = e.shap_values(torch.from_numpy(X_full).to(args.device))
+
+  class1 = shap_values[0]
+  class2 = shap_values[1]
+  class3 = shap_values[2]
+
+  shap.summary_plot(shap_values, features=torch.from_numpy(X_train).to(args.device), feature_names = features, show=False)
+  plt.savefig("summary_plot.png")
 
 def main():
   parser = argparse.ArgumentParser()
@@ -187,53 +202,11 @@ def main():
                                             batch_size=args.batch_size, 
                                             shuffle=False)
 
-  train_and_test(args, model, train_loader, test_loader)
-  # cross_validation(args, model, train_arr, labels)
-  # batch = next(iter(train_loader))
-  # batch = batch
-  # data, _ = batch
-  features = (new_df["ID_no"]).tolist()
-  gfeatures = (new_df["Gene_IDs"]).tolist()
-  # print(features)
-  # print(len(features))
-  # f = [x for x in features]
-  # # df["fruit"].astype("|S")
-  # print(len(features))
-  # f = []
-  sm = torch.load("model/NN.pth").to(args.device)
-  # dataset =  TensorDataset(torch.from_numpy(train_arr), torch.from_numpy(labels))
+  # train_and_test(args, model, train_loader, test_loader)
+  cross_validation(args, model, train_arr, labels)
+
   X_full = np.vstack((X_train, X_test))
-  e = shap.DeepExplainer(sm, torch.from_numpy(X_train).to(args.device))
-  shap_values = e.shap_values(torch.from_numpy(X_full).to(args.device))
-
-
-  class1 = shap_values[0]
-  class2 = shap_values[1]
-  class3 = shap_values[2]
-
-
-  shap.summary_plot(shap_values, features=torch.from_numpy(X_train).to(args.device), feature_names = features, show=False)
-  plt.savefig("summary_plot.png")
-
-  m = (np.mean(np.abs(shap_values), axis=0))
-  # print(m.shape)
-  df = pd.DataFrame(m, columns=features).mean()
-  # df = pd.DataFrame({
-  #     "mean_0": np.mean(np.abs(class1), axis=0), 
-  #     "std_0": np.std(np.abs(class1), axis=0),
-  #     "id":features
-  # }, index=[2])
-
-  df.columns = ['feature_no', 'feature_importance']
-  df
-  print(df)
-  df.to_csv('final.csv')
-  # df['gene_ids'] = np.array(gfeatures)    
-  # print(df)
-
-
-  # df.to_csv('final.csv')
-
+  feature_importance(args, model, X_full)
   
 
   
