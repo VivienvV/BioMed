@@ -187,33 +187,36 @@ def main():
   best_scores = {}
   best = 0
 
+  # Split data into K (default=5) folds, perform feature selection 
   for train_index, test_index in kf.split(train_arr):
     print("FOLD", i)
     X_train, X_test = train_arr[train_index], train_arr[test_index]
     y_train, y_test = labels[train_index], labels[test_index]
     X_train, X_test, _ = feature_selection(args, X_train, X_test, y_train, y_test, train_call)
     net.set_params(train_split=False, verbose=0)
+    # Perform grid search on 3 repeats
     gs = GridSearchCV(net, params, refit=True, cv=3, scoring='accuracy', verbose=0)
     gs.fit(X_train.astype('float32'), y_train.astype('int64'))
 
-    print("best score: {:.3f}, best params: {}\n".format(gs.best_score_, gs.best_params_))
+    print("Mean best accuracy: {:.3f}, best params: {}\n".format(gs.best_score_, gs.best_params_))
     
     best_scores[i] = gs.best_score_
     best_params[gs.best_score_] = gs.best_params_
     i += 1
     
-  # Print fold results
+  # Print results for all folds and save best parameters
   print(f'K-FOLD CROSS VALIDATION RESULTS FOR {args.num_folds} FOLDS')
   print('--------------------------------')
   sum = 0.0
   for key, value in best_scores.items():
     print(f'Fold {key}: {value} %')
     sum += value
-  print(f'Average: {sum/len(best_scores.items())} %')
   best_modelparams = best_params[max(best_scores.values())]
+
+  print(f'Average: {sum/len(best_scores.items())} %')
   print('Best params:', best_modelparams)
 
-  # Outer loop: train best model for 10 folds and report mean accuracy 
+  # Train model with found best parameters for 10 folds and report mean accuracy 
   best_model = NeuralNetClassifier(
     module=model, 
     module__NN_hidden=best_modelparams['module__NN_hidden'],
