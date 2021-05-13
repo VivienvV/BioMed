@@ -225,7 +225,8 @@ def main():
     module__args=args,
     optimizer=optim.Adam, 
     optimizer__lr=best_modelparams['optimizer__lr'],
-    optimizer__weight_decay=best_modelparams['optimizer__weight_decay']
+    optimizer__weight_decay=best_modelparams['optimizer__weight_decay'],
+    verbose=0
     )  
 
   # Save model to pickle file
@@ -236,7 +237,7 @@ def main():
   X_train, X_test, new_df = feature_selection(args, X_train, X_test, y_train, y_test, train_call)
   X = np.r_[X_train, X_test].astype('float32')
   y = np.r_[y_train, y_test].astype('int64')
-  print('Mean accuracy of best performing model:', np.mean(cross_val_score(best_model, X, y, cv=10, scoring='accuracy', verbose=0)))
+  print('Mean accuracy of best performing model:', np.mean(cross_val_score(best_model, X, y, cv=10, scoring='accuracy', verbose=1)))
 
 
   # feature_importance(args, best_model, X_train, X_test, new_df)
