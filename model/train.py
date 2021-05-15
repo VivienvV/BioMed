@@ -139,7 +139,7 @@ def main():
                       help='Learning rate')
   parser.add_argument('--num_epochs', type=int, default=50,
                       help='Amount of epochs used in training')
-  parser.add_argument('--num_folds', type=int, default=5,
+  parser.add_argument('--num_folds', type=int, default=3,
                       help='Amount of folds for outer CV loop')  
   parser.add_argument('--test_size', type=float, default=0.3,
                       help='Amount of data to use for testing (leave zero to use all data for training')
@@ -158,6 +158,7 @@ def main():
         'max_epochs' : [50, 100, 120],
         'module__NN_hidden': [[450], [128], [450, 100], [128, 128]],
     }
+
   elif args.model == 'LSTM':
     model = LSTM(args).to(args.device)
     params = {
@@ -180,71 +181,60 @@ def main():
     optimizer=optim.Adam, 
     )
 
-  # START CROSS VALIDATION
-  kf = KFold(n_splits=args.num_folds)
-  i = 1
-  best_params = {}
-  best_scores = {}
-  best = 0
+  iter_acc = []
+  iter_params = {}
+  iter_est = {}
+  for i in range(0,10):
 
-  # Split data into K (default=5) folds, perform feature selection 
-  for train_index, test_index in kf.split(train_arr):
-    print("FOLD", i)
-    X_train, X_test = train_arr[train_index], train_arr[test_index]
-    y_train, y_test = labels[train_index], labels[test_index]
-    X_train, X_test, _ = feature_selection(args, X_train, X_test, y_train, y_test, train_call)
-    net.set_params(train_split=False, verbose=0)
-    # Perform grid search on 3 repeats
-    gs = GridSearchCV(net, params, refit=True, cv=3, scoring='accuracy', verbose=0)
-    gs.fit(X_train.astype('float32'), y_train.astype('int64'))
+    # START CROSS VALIDATION ITERATION
+    kf = KFold(n_splits=args.num_folds, shuffle=True)
+    f = 1
+    best_params = {}
+    best_scores = {}
+    best_est = {}
 
-    print("Mean best accuracy: {:.3f}, best params: {}\n".format(gs.best_score_, gs.best_params_))
-    
-    best_scores[i] = gs.best_score_
-    best_params[gs.best_score_] = gs.best_params_
-    i += 1
-    
-  # Print results for all folds and save best parameters
-  print(f'K-FOLD CROSS VALIDATION RESULTS FOR {args.num_folds} FOLDS')
+    # Split data into K (default=5) folds, perform feature selection 
+    for train_index, test_index in kf.split(train_arr):
+      X_train, X_test = train_arr[train_index], train_arr[test_index]
+      y_train, y_test = labels[train_index], labels[test_index]
+      X_train, X_test, _ = feature_selection(args, X_train, X_test, y_train, y_test, train_call)
+      net.set_params(train_split=False, verbose=0)
+      # Perform grid search on 3 repeats
+      gs = GridSearchCV(net, params, refit=True, cv=3, scoring='accuracy', verbose=0)
+      gs.fit(X_train.astype('float32'), y_train.astype('int64'))
+
+      print("FOLD {}: Mean best accuracy: {:.3f}, best params: {}".format(f, gs.best_score_, gs.best_params_))
+      
+      best_scores[f] = gs.best_score_
+      best_params[gs.best_score_] = gs.best_params_
+      best_est[gs.best_score_] = gs.best_estimator_
+      f += 1
+
+    av_acc = sum(best_scores.values())/len(best_scores)
+    best_modelparams = best_params[max(best_scores.values())]
+    best_estimator = best_est[max(best_scores.values())]
+
+
+    print('\nITERATION {}: average accuracy score: {}, best params: {}\n'.format(i, av_acc, best_modelparams))
+
+    iter_acc.append(av_acc)
+    iter_params[av_acc] = best_modelparams
+    iter_est[av_acc] = best_estimator
+
   print('--------------------------------')
-  sum = 0.0
-  for key, value in best_scores.items():
-    print(f'Fold {key}: {value} %')
-    sum += value
-  best_modelparams = best_params[max(best_scores.values())]
+  print('--------------------------------\nFinished cross-validation')
+  print('Mean accuracy over all iterations: ', np.mean(np.array(iter_acc)))
+  print('Best params over all iterations: ', iter_params[max(iter_acc)])
 
-  print(f'Average: {sum/len(best_scores.items())} %')
-  print('Best params:', best_modelparams)
-
-  # Train model with found best parameters for 10 folds and report mean accuracy 
-  best_model = NeuralNetClassifier(
-    module=model, 
-    module__NN_hidden=best_modelparams['module__NN_hidden'],
-    criterion=torch.nn.CrossEntropyLoss, 
-    max_epochs=best_modelparams['max_epochs'], 
-    module__args=args,
-    optimizer=optim.Adam, 
-    optimizer__lr=best_modelparams['optimizer__lr'],
-    optimizer__weight_decay=best_modelparams['optimizer__weight_decay'],
-    verbose=0
-    )  
+  best_model = iter_est[max(iter_acc)]
 
   # Save model to pickle file
   with open('{}.pkl'.format(args.model), 'wb') as f:
     pickle.dump(best_model, f)
 
-  X_train, X_test, y_train, y_test = train_test_split(train_arr, labels, test_size=args.test_size)
-  X_train, X_test, new_df = feature_selection(args, X_train, X_test, y_train, y_test, train_call)
-  X = np.r_[X_train, X_test].astype('float32')
-  y = np.r_[y_train, y_test].astype('int64')
-  print('Mean accuracy of best performing model:', np.mean(cross_val_score(best_model, X, y, cv=10, scoring='accuracy', verbose=1)))
-
 
   # feature_importance(args, best_model, X_train, X_test, new_df)
 
-  # # loading
-  # with open('{}.pkl'.format(args.model), 'rb') as f:
-  #     best_model = pickle.load(f) 
 
 if __name__ == '__main__':
     main()

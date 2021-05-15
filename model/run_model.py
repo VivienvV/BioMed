@@ -60,10 +60,15 @@ def main():
         model = joblib.load(args.model)
     # suggested steps
     # Step 1: load the model from the model file
+    # loading
+    with open('{}.pkl'.format(args.model), 'rb') as f:
+        best_model = pickle.load(f) 
     # Step 2: apply the model to the input file to do the prediction
     # Step 3: write the prediction into the desinated output file
 
     # End your coding
+
+
 
 
 if __name__ == '__main__':
