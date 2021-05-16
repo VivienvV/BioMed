@@ -121,8 +121,8 @@ def main():
 
     # Step 3: write the prediction into the desinated output file
     result = ['HER2+' if x == 0 else 'HR+' if x == 1 else 'TN' for x in predictions]
-    df = pd.DataFrame(np.c_[list(val_call.columns[-57:].values), result], columns = ['Sample', 'Subgroup'])
-    df.to_csv(args.output_file, sep='\t')
+    df = pd.DataFrame(np.c_[list(val_call.columns[-57:].values), result], columns = [str("Sample"), str("Subgroup")])
+    df.to_csv(args.output_file, sep='\t', index=False)
 
     # End your coding
 

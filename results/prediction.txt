@@ -1,58 +1,58 @@
-	Sample	Subgroup
-0	Array.1	TN
-1	Array.61	TN
-2	Array.70	TN
-3	Array.14	HR+
-4	Array.91	TN
-5	Array.58	TN
-6	Array.140	HR+
-7	Array.20	TN
-8	Array.133	TN
-9	Array.77	HER2+
-10	Array.131	TN
-11	Array.84	TN
-12	Array.44	TN
-13	Array.41	TN
-14	Array.29	HER2+
-15	Array.150	HR+
-16	Array.151	TN
-17	Array.132	HR+
-18	Array.32	HER2+
-19	Array.11	TN
-20	Array.156	TN
-21	Array.80	HER2+
-22	Array.9	HR+
-23	Array.3	TN
-24	Array.136	HR+
-25	Array.46	TN
-26	Array.109	HR+
-27	Array.103	TN
-28	Array.97	HER2+
-29	Array.40	TN
-30	Array.147	TN
-31	Array.161	TN
-32	Array.127	TN
-33	Array.119	HR+
-34	Array.157	TN
-35	Array.54	TN
-36	Array.115	TN
-37	Array.121	HER2+
-38	Array.122	TN
-39	Array.158	TN
-40	Array.87	TN
-41	Array.28	TN
-42	Array.45	HR+
-43	Array.155	TN
-44	Array.12	TN
-45	Array.74	HR+
-46	Array.26	HR+
-47	Array.120	TN
-48	Array.108	TN
-49	Array.81	TN
-50	Array.126	TN
-51	Array.92	TN
-52	Array.160	TN
-53	Array.66	HR+
-54	Array.83	HR+
-55	Array.128	HR+
-56	Array.63	TN
+"Sample"	"Subgroup"
+Array.1	TN
+Array.61	TN
+Array.70	TN
+Array.14	HR+
+Array.91	TN
+Array.58	TN
+Array.140	HR+
+Array.20	TN
+Array.133	TN
+Array.77	HER2+
+Array.131	TN
+Array.84	TN
+Array.44	TN
+Array.41	TN
+Array.29	HER2+
+Array.150	HR+
+Array.151	TN
+Array.132	HR+
+Array.32	HER2+
+Array.11	TN
+Array.156	TN
+Array.80	HER2+
+Array.9	HR+
+Array.3	TN
+Array.136	HR+
+Array.46	TN
+Array.109	HR+
+Array.103	TN
+Array.97	HER2+
+Array.40	TN
+Array.147	TN
+Array.161	TN
+Array.127	TN
+Array.119	HR+
+Array.157	TN
+Array.54	TN
+Array.115	TN
+Array.121	HER2+
+Array.122	TN
+Array.158	TN
+Array.87	TN
+Array.28	TN
+Array.45	HR+
+Array.155	TN
+Array.12	TN
+Array.74	HR+
+Array.26	HR+
+Array.120	TN
+Array.108	TN
+Array.81	TN
+Array.126	TN
+Array.92	TN
+Array.160	TN
+Array.66	HR+
+Array.83	HR+
+Array.128	HR+
+Array.63	TN
